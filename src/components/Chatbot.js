@@ -1,96 +1,138 @@
-import React, { useState, useRef, useEffect } from 'react';
-import './Chatbot.css';
+import React, { useState, useRef, useEffect } from "react";
+import "./Chatbot.css";
 
 function Chatbot() {
-    const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState([
-        { text: "Hello! I'm Sahara AI Assistant. How can I help you find government schemes today?", isBot: true }
-    ]);
-    const [inputValue, setInputValue] = useState('');
-    const messagesEndRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      text: "Hello! I'm Sahara AI Assistant. How can I help you find government schemes today?",
+      isBot: true,
+    },
+  ]);
+  const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
-    const handleSend = (e) => {
-        e.preventDefault();
-        if (!inputValue.trim()) return;
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isLoading) return;
 
-        const userMessage = { text: inputValue, isBot: false };
-        setMessages(prev => [...prev, userMessage]);
-        setInputValue('');
+    const userMessage = { text: inputValue, isBot: false };
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue("");
+    setIsLoading(true);
 
-        // Simulated AI Response
-        setTimeout(() => {
-            let botResponse = "I'm analyzing your query. You can explore over 3,400 schemes in our 'Explore Schemes' section.";
-            if (inputValue.toLowerCase().includes('farmer') || inputValue.toLowerCase().includes('kisan')) {
-                botResponse = "For farmers, I recommend checking out PM-KISAN, Krishi Sinchai Yojana, and Fasal Bima Yojana.";
-            } else if (inputValue.toLowerCase().includes('scholarship') || inputValue.toLowerCase().includes('student')) {
-                botResponse = "Students can benefit from Post-Matric Scholarships, PM-YASASVI, and various state-specific education grants.";
-            }
+    try {
+      // ⚠️ USE YOUR NEW API KEY (do NOT use the leaked one)
+      const API_KEY = "AIzaSyCUBW1mXoxA8hiiRuR8gzim2yeHqx4GCXU";
 
-            setMessages(prev => [...prev, { text: botResponse, isBot: true }]);
-        }, 1000);
-    };
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${API_KEY}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `You are Sahara AI Assistant, an expert on Indian government schemes.
+Help the user with their query: ${inputValue}.
+Give short, clear, helpful answers.`,
+                  },
+                ],
+              },
+            ],
+          }),
+        }
+      );
 
-    return (
-        <div className={`chatbot-wrapper ${isOpen ? 'expanded' : ''}`}>
-            {/* Chat Window */}
-            <div className="chat-window">
-                <div className="chat-header">
-                    <div className="bot-info">
-                        <div className="bot-avatar">🤖</div>
-                        <div>
-                            <h4>Sahara AI Assistant</h4>
-                            <span className="status-indicator">Online</span>
-                        </div>
-                    </div>
-                    <button className="close-btn" onClick={() => setIsOpen(false)}>×</button>
-                </div>
+      const data = await response.json();
 
-                <div className="chat-messages">
-                    {messages.map((msg, index) => (
-                        <div key={index} className={`message-bubble ${msg.isBot ? 'bot' : 'user'}`}>
-                            {msg.text}
-                        </div>
-                    ))}
-                    <div ref={messagesEndRef} />
-                </div>
+      if (!response.ok) {
+        console.error("Gemini error:", data);
+        throw new Error(data.error?.message || "API Error");
+      }
 
-                <form className="chat-input" onSubmit={handleSend}>
-                    <input
-                        type="text"
-                        placeholder="Ask about schemes..."
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                    />
-                    <button type="submit">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-                        </svg>
-                    </button>
-                </form>
+      const botResponse =
+        data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "Sorry, I couldn’t understand that.";
+
+      setMessages((prev) => [...prev, { text: botResponse, isBot: true }]);
+    } catch (error) {
+      console.error(error);
+      setMessages((prev) => [
+        ...prev,
+        { text: "Something went wrong. Please try again.", isBot: true },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className={`chatbot-wrapper ${isOpen ? "expanded" : ""}`}>
+      <div className="chat-window">
+        <div className="chat-header">
+          <div className="bot-info">
+            <div className="bot-avatar">🤖</div>
+            <div>
+              <h4>Sahara AI Assistant</h4>
+              <span className="status-indicator">Online</span>
             </div>
-
-            {/* Floating Toggle Button */}
-            <button className="chat-toggle" onClick={() => setIsOpen(!isOpen)}>
-                {isOpen ? (
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                ) : (
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" />
-                    </svg>
-                )}
-            </button>
+          </div>
+          <button className="close-btn" onClick={() => setIsOpen(false)}>
+            ×
+          </button>
         </div>
-    );
+
+        <div className="chat-messages">
+          {messages.map((msg, index) => (
+            <div
+              key={index}
+              className={`message-bubble ${msg.isBot ? "bot" : "user"}`}
+            >
+              {msg.text}
+            </div>
+          ))}
+
+          {isLoading && (
+            <div className="message-bubble bot typing">
+              <span className="dot"></span>
+              <span className="dot"></span>
+              <span className="dot"></span>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        <form className="chat-input" onSubmit={handleSend}>
+          <input
+            type="text"
+            placeholder="Ask about schemes..."
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+          />
+          <button type="submit">➤</button>
+        </form>
+      </div>
+
+      <button className="chat-toggle" onClick={() => setIsOpen(!isOpen)}>
+        {isOpen ? "✖" : "💬"}
+      </button>
+    </div>
+  );
 }
 
 export default Chatbot;
