@@ -1,0 +1,4 @@
+/* App reset – all page styles live in component CSS */
+.App {
+  min-height: 100vh;
+}
