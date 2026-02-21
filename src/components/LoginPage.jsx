@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   createUserWithEmailAndPassword,
+  updateProfile,
 } from 'firebase/auth';
 
 function LoginPage() {
@@ -15,15 +16,33 @@ function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  // ── Email / Password sign-in ──
+  // ── Email / Password Auth ──
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (isSignUp) {
+      if (!fullName) return setError('Full name is required.');
+      if (password !== confirmPassword) return setError('Passwords do not match.');
+      if (password.length < 6) return setError('Password must be at least 6 characters.');
+    }
+
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log('Signed in:', userCredential.user);
+      if (isSignUp) {
+        // Handle Sign Up
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName: fullName });
+        console.log('Account created:', userCredential.user);
+      } else {
+        // Handle Sign In
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        console.log('Signed in:', userCredential.user);
+      }
       // TODO: redirect to dashboard
     } catch (err) {
       switch (err.code) {
@@ -36,6 +55,12 @@ function LoginPage() {
           break;
         case 'auth/too-many-requests':
           setError('Too many attempts. Try again later.');
+          break;
+        case 'auth/email-already-in-use':
+          setError('This email is already registered.');
+          break;
+        case 'auth/weak-password':
+          setError('Password must be at least 6 characters.');
           break;
         default:
           setError(err.message);
@@ -62,51 +87,22 @@ function LoginPage() {
     }
   };
 
-  // ── Sign-up (quick create account) ──
-  const handleSignUp = async () => {
-    if (!email || !password) {
-      setError('Enter email and password first, then click "Create one now".');
-      return;
-    }
-    setError('');
-    setLoading(true);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log('Account created:', userCredential.user);
-      // TODO: redirect to dashboard
-    } catch (err) {
-      switch (err.code) {
-        case 'auth/email-already-in-use':
-          setError('This email is already registered. Try signing in.');
-          break;
-        case 'auth/weak-password':
-          setError('Password must be at least 6 characters.');
-          break;
-        default:
-          setError(err.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   return (
     <div className="login-container">
       {/* ── Left Hero Panel ── */}
       <div className="login-hero">
-        {/* Animated background elements (match your updated CSS) */}
-        <div className="gradient-overlay"></div>
-        <div className="light-streak"></div>
-        <div className="wave-pattern"></div>
-        {[...Array(10)].map((_, i) => (
-          <div key={i} className="particle"></div>
-        ))}
+        {/* Professional Minimalist Background */}
+        <div className="hero-background-pattern"></div>
 
         <div className="hero-content">
           <div className="hero-glass-card">
             <img src={logo} alt="Sahara AI Logo" className="hero-logo" />
-
-          </div>
+            <p className="hero-tagline">
+              Empowering citizens with AI-driven access to government welfare
+              schemes — simplified, personalized, and inclusive.
+            </p>          </div>
 
           <div className="hero-features">
             <div className="hero-feature">
@@ -134,8 +130,8 @@ function LoginPage() {
           </div>
 
           <div className="form-header">
-            <h1>Welcome Back</h1>
-            <p>Sign in to continue to your dashboard</p>
+            <h1>{isSignUp ? 'Create Account' : 'Welcome Back'}</h1>
+            <p>{isSignUp ? 'Join Sahara AI to access your benefits' : 'Sign in to continue to your dashboard'}</p>
           </div>
 
           {/* Error banner */}
@@ -146,6 +142,28 @@ function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="login-form">
+            {/* Full Name (Sign Up only) */}
+            {isSignUp && (
+              <div className="input-group">
+                <label htmlFor="fullName">Full Name</label>
+                <div className="input-wrapper">
+                  <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <input
+                    id="fullName"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Email */}
             <div className="input-group">
               <label htmlFor="email">Email Address</label>
@@ -177,7 +195,7 @@ function LoginPage() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
+                  placeholder={isSignUp ? 'Minimum 6 characters' : 'Enter your password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
@@ -206,21 +224,44 @@ function LoginPage() {
               </div>
             </div>
 
+            {/* Confirm Password (Sign Up only) */}
+            {isSignUp && (
+              <div className="input-group">
+                <label htmlFor="confirmPassword">Confirm Password</label>
+                <div className="input-wrapper">
+                  <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  <input
+                    id="confirmPassword"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Remember / Forgot */}
-            <div className="form-options">
-              <label className="remember-me">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                <span className="checkmark"></span>
-                Remember me
-              </label>
-              <a href="#forgot" className="forgot-link">
-                Forgot password?
-              </a>
-            </div>
+            {!isSignUp && (
+              <div className="form-options">
+                <label className="remember-me">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                  <span className="checkmark"></span>
+                  Remember me
+                </label>
+                <a href="#forgot" className="forgot-link">
+                  Forgot password?
+                </a>
+              </div>
+            )}
 
             {/* Submit */}
             <button type="submit" className="sign-in-btn" disabled={loading}>
@@ -228,7 +269,7 @@ function LoginPage() {
                 <span className="spinner"></span>
               ) : (
                 <>
-                  <span>Sign In</span>
+                  <span>{isSignUp ? 'Create Account' : 'Sign In'}</span>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="5" y1="12" x2="19" y2="12" />
                     <polyline points="12 5 19 12 12 19" />
@@ -271,15 +312,18 @@ function LoginPage() {
 
           {/* Sign-up link */}
           <p className="signup-prompt">
-            Don't have an account?{' '}
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
             <button
               type="button"
               className="signup-link"
-              onClick={handleSignUp}
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError('');
+              }}
               disabled={loading}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}
             >
-              Create one now
+              {isSignUp ? 'Sign in instead' : 'Create one now'}
             </button>
           </p>
         </div>
